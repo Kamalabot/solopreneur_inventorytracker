@@ -5,14 +5,21 @@ on:
     tags:
       - 'v*'  # Trigger on version tags
 
+env:
+  ENVIRONMENT: soloprenuer
+
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    environment: soloprenuer
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
+
+    - name: Get the version
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -30,7 +37,7 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.ref }} .
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }} .
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v1
@@ -40,4 +47,4 @@ jobs:
 
     - name: Push Docker image
       run: |
-        docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ github.ref }}
+        docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }}

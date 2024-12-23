@@ -887,3 +887,80 @@ if __name__ == '__main__':
    - The test cases remain unchanged but will now operate on the test database created during the setup phase.
 
 This structure ensures that each test runs in a clean environment, and the database is properly managed throughout the testing process.
+
+# GitHub Actions Workflow Updates
+
+## Changes Made to `.github/workflows/python-app.yml`
+
+### Summary of Updates
+- **Environment Specification**: Added an environment variable to specify the environment as `soloprenuer`.
+- **Version Extraction**: Introduced a step to extract the version from the Git tag using the `GITHUB_REF` variable.
+- **Docker Image Tagging**: Updated the Docker build and push commands to use the extracted version for tagging the Docker image.
+- **Latest Tagging**: Added tagging for the `latest` version alongside the specific version tag.
+
+### Updated Workflow File
+```yaml
+name: Python application
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags
+
+env:
+  ENVIRONMENT: soloprenuer
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: soloprenuer
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Get the version
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        python -m unittest discover -s tests
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }} .
+        docker tag ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }}
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Push Docker image
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ steps.get_version.outputs.VERSION }}
+        docker push ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:latest
+```
+
+### Explanation of Key Changes
+- **Triggers**: The workflow is triggered on pushes to tags that match the pattern `v*`, allowing for versioned releases.
+- **Environment Variable**: The `ENVIRONMENT` variable is set to `soloprenuer`, which can be used in the workflow for conditional logic or configuration.
+- **Version Extraction**: The `Get the version` step extracts the version from the Git tag and stores it in the output variable `VERSION`.
+- **Docker Image Build and Tagging**: The Docker image is built using the extracted version, and a `latest` tag is also created for convenience.
+- **Docker Hub Login and Push**: The workflow logs into Docker Hub and pushes both the versioned and latest images.
+
+### Future Considerations
+- Ensure that the necessary secrets (`DOCKER_USERNAME`, `DOCKER_PASSWORD`, `DOCKER_IMAGE_NAME`) are set up in the GitHub repository settings.
+- Consider implementing automated versioning strategies to streamline the tagging process.
