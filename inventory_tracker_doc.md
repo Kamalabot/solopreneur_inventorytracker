@@ -729,6 +729,13 @@ permissions:
   actions: read
   deployments: write
 ```
+```
+# Create a new tag
+git tag v1.0.0
+
+# Push the tag to GitHub
+git push origin v1.0.0
+```
 
 ### Note
 
