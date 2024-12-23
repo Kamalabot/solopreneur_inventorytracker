@@ -698,3 +698,192 @@ jobs:
 - Provided an explanation of the GitHub Actions workflow.
 
 This updated documentation should provide a comprehensive overview of testing and CI/CD setup for the Electronics Inventory Tracking System.
+
+For GitHub Actions to work correctly, the following permissions are typically required:
+
+1. **Read Repository Contents**: This permission allows the action to access the repository's code, including all files and directories. It is necessary for actions that need to check out the code.
+
+2. **Write Repository Contents**: If your workflow includes steps that modify the repository (e.g., creating or updating files), this permission is required.
+
+3. **Read and Write Issues**: If your workflow interacts with issues (e.g., creating comments or labels), it will need permissions to read and write issues.
+
+4. **Read and Write Pull Requests**: Similar to issues, if your workflow needs to interact with pull requests (e.g., commenting, merging), it will require these permissions.
+
+5. **Read and Write Actions**: If your workflow involves managing GitHub Actions (e.g., creating or updating workflows), these permissions are necessary.
+
+6. **Read and Write Secrets**: If your workflow uses secrets (e.g., API keys, tokens), it will need permissions to read those secrets.
+
+7. **Read and Write Deployments**: If your workflow involves deploying code (e.g., to a cloud service), it may require permissions to manage deployments.
+
+8. **Read and Write Webhooks**: If your workflow interacts with webhooks, these permissions will be necessary.
+
+### Setting Permissions
+
+You can set these permissions in your workflow YAML file under the `permissions` key. For example:
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: read
+  deployments: write
+```
+
+### Note
+
+- By default, GitHub Actions have read access to the repository contents. You can customize permissions based on your workflow's needs.
+- Always follow the principle of least privilege, granting only the permissions necessary for the workflow to function correctly.
+
+### Setting up the Database and teardown in tests
+
+Sure! Below is the updated `test_app.py` file that includes the database setup and teardown in the `setUpClass` and `tearDownClass` methods. This ensures that the SQLite test database is created before any tests run and cleaned up afterward.
+
+```python
+import unittest
+import sqlite3
+import os
+
+class FlaskAppTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        # Create a test database
+        cls.connection = sqlite3.connect('test_inventory.db')
+        cls.cursor = cls.connection.cursor()
+        
+        # Create tables
+        cls.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS inventory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                sector TEXT NOT NULL,
+                application TEXT NOT NULL,
+                date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        cls.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        cls.connection.commit()
+
+        # Create a test user for login and registration tests
+        cls.test_username = 'testuser'
+        cls.test_password = 'testpass'
+        cls.test_email = 'testuser@example.com'
+
+        # Register the test user
+        cls.cursor.execute('INSERT INTO users (username, password, email) VALUES (?, ?, ?)',
+                           (cls.test_username, cls.test_password, cls.test_email))
+        cls.connection.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        # Clean up the database after tests
+        cls.connection.close()
+        os.remove('test_inventory.db')
+
+    def setUp(self):
+        self.app = app.test_client()
+        self.app.testing = True
+
+    def test_landing_page(self):
+        response = self.app.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Inventory Tracker', response.data)
+        self.assertIn(b'Login', response.data)
+        self.assertIn(b'Register', response.data)
+
+    def test_login_page(self):
+        response = self.app.get('/login')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Login', response.data)
+        self.assertIn(b'Username', response.data)
+        self.assertIn(b'Password', response.data)
+
+    def test_register_page(self):
+        response = self.app.get('/register')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Register', response.data)
+        self.assertIn(b'Username', response.data)
+        self.assertIn(b'Password', response.data)
+        self.assertIn(b'Email', response.data)
+
+    def test_dashboard_redirect(self):
+        response = self.app.get('/dashboard', follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Please log in first.', response.data)
+
+    def test_login(self):
+        response = self.app.post('/login', data={
+            'username': self.test_username,
+            'password': self.test_password
+        }, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Welcome back!', response.data)
+        self.assertIn(b'Dashboard', response.data)
+
+    def test_register(self):
+        response = self.app.post('/register', data={
+            'username': 'newuser1',
+            'password': 'newpass2',
+            'email': 'newuser12@example.com'
+        }, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Registration successful!', response.data)
+        self.assertIn(b'Please log in.', response.data)
+
+    def test_add_item(self):
+        self.app.post('/login', data={
+            'username': self.test_username,
+            'password': self.test_password
+        })
+        response = self.app.post('/add', data={
+            'name': 'Test Item',
+            'quantity': '10',
+            'category': 'Test Category',
+            'sector': 'Test Sector',
+            'application': 'Test Application'
+        }, follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Item successfully added!', response.data)
+
+    def test_upload_csv(self):
+        # This test would require a valid CSV file to be uploaded
+        pass  # Implement CSV upload test
+
+    def test_logout(self):
+        self.app.post('/login', data={
+            'username': self.test_username,
+            'password': self.test_password
+        })
+        response = self.app.get('/logout', follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'You have been logged out.', response.data)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+### Key Changes Made
+
+1. **Database Setup**:
+   - The `setUpClass` method creates a test SQLite database (`test_inventory.db`) and the necessary tables (`inventory` and `users`) before any tests are run.
+   - A test user is also registered in the database during this setup.
+
+2. **Database Teardown**:
+   - The `tearDownClass` method closes the database connection and removes the test database file after all tests have run.
+
+3. **Test Cases**:
+   - The test cases remain unchanged but will now operate on the test database created during the setup phase.
+
+This structure ensures that each test runs in a clean environment, and the database is properly managed throughout the testing process.

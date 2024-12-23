@@ -5,6 +5,7 @@ import csv
 import io
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+import os
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'  # Required for flashing messages and sessions
@@ -19,7 +20,13 @@ def login_required(f):
     return decorated_function
 
 def get_db_connection():
-    conn = sqlite3.connect('inventory.db')
+    # Check if the application is in testing mode
+    if app.config['TESTING']:
+        db_name = 'test_inventory.db'  # Use the test database
+    else:
+        db_name = 'inventory.db'  # Use the production database
+
+    conn = sqlite3.connect(db_name)
     conn.row_factory = sqlite3.Row
     return conn
 
