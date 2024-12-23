@@ -1,0 +1,28 @@
+<tr>
+    <td>{{ item['name'] }}</td>
+    <td>
+        <span class="quantity-display">{{ item['quantity'] }}</span>
+        <input type="number" 
+               class="form-control quantity-input d-none" 
+               value="{{ item['quantity'] }}"
+               hx-put="{{ url_for('update_quantity', item_id=item['id']) }}"
+               hx-trigger="change"
+               hx-target="closest tr">
+    </td>
+    <td>{{ item['category'] }}</td>
+    <td>{{ item['sector'] }}</td>
+    <td>{{ item['application'] }}</td>
+    <td>{{ item['date_added'] }}</td>
+    <td>
+        <button class="btn btn-sm btn-outline-primary edit-quantity"
+                onclick="toggleQuantityEdit(this)">
+            <i class="bi bi-pencil"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger"
+                hx-delete="{{ url_for('delete_item', item_id=item['id']) }}"
+                hx-confirm="Are you sure you want to delete this item?"
+                hx-target="closest tr">
+            <i class="bi bi-trash"></i>
+        </button>
+    </td>
+</tr> 

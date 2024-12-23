@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ url_for('dashboard') }}">
+                            <i class="bi bi-house-door"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('add_item') }}">
+                            <i class="bi bi-plus-circle"></i> Add Item
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('upload_csv') }}">
+                            <i class="bi bi-upload"></i> Import CSV
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1>Dashboard</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <div class="btn-group me-2">
+                        <a href="{{ url_for('add_item') }}" class="btn btn-sm btn-outline-primary">Add New Item</a>
+                        <a href="{{ url_for('upload_csv') }}" class="btn btn-sm btn-outline-secondary">Import CSV</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="table-responsive" id="inventory-table">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Quantity</th>
+                            <th>Category</th>
+                            <th>Sector</th>
+                            <th>Application</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item['name'] }}</td>
+                            <td>
+                                <span class="quantity-display">{{ item['quantity'] }}</span>
+                                <input type="number" 
+                                       class="form-control quantity-input d-none" 
+                                       value="{{ item['quantity'] }}"
+                                       hx-put="{{ url_for('update_quantity', item_id=item['id']) }}"
+                                       hx-trigger="change"
+                                       hx-target="closest tr">
+                            </td>
+                            <td>{{ item['category'] }}</td>
+                            <td>{{ item['sector'] }}</td>
+                            <td>{{ item['application'] }}</td>
+                            <td>{{ item['date_added'] }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary edit-quantity"
+                                        onclick="toggleQuantityEdit(this)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        hx-delete="{{ url_for('delete_item', item_id=item['id']) }}"
+                                        hx-confirm="Are you sure you want to delete this item?"
+                                        hx-target="closest tr">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script>
+function toggleQuantityEdit(button) {
+    const row = button.closest('tr');
+    const display = row.querySelector('.quantity-display');
+    const input = row.querySelector('.quantity-input');
+    
+    if (display.classList.contains('d-none')) {
+        // Save mode
+        display.classList.remove('d-none');
+        input.classList.add('d-none');
+        button.innerHTML = '<i class="bi bi-pencil"></i>';
+    } else {
+        // Edit mode
+        display.classList.add('d-none');
+        input.classList.remove('d-none');
+        input.focus();
+        button.innerHTML = '<i class="bi bi-check"></i>';
+    }
+}
+</script>
+{% endblock %} 

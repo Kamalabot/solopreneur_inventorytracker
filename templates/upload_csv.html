@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Upload Inventory CSV</h1>
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">CSV Format Requirements</h5>
+            <p class="card-text">Please ensure your CSV file follows this format:</p>
+            <code>name, quantity, category, sector, application</code>
+            <p class="card-text mt-2">Example:</p>
+            <code>electronic1, 15, home appliances, Kitchen, Dish Washing</code>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="mt-4">
+        <div class="mb-3">
+            <label for="file" class="form-label">Select CSV File</label>
+            <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Upload and Import</button>
+    </form>
+{% endblock %} 

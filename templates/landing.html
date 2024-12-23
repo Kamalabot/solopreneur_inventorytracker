@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="container-fluid px-0">
+    <div class="row g-0">
+        <div class="col-md-6 bg-primary text-white p-5 min-vh-100 d-flex flex-column justify-content-center">
+            <h1 class="display-4 fw-bold">Inventory Tracker</h1>
+            <p class="lead mb-4">Transform your inventory management with our modern, efficient tracking system.</p>
+            <div class="features-highlight mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <span>Real-time inventory tracking</span>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <span>Multi-format data import (CSV, Excel)</span>
+                </div>
+                <div class="d-flex align-items-center mb-3">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <span>Secure user authentication</span>
+                </div>
+            </div>
+            <div class="mt-4">
+                <a href="{{ url_for('login') }}" class="btn btn-light btn-lg me-3">Login</a>
+                <a href="{{ url_for('register') }}" class="btn btn-outline-light btn-lg">Register</a>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="col-md-6 bg-light min-vh-100">
+            <div class="p-5">
+                <h2 class="mb-4">Current Features</h2>
+                <div class="feature-list mb-5">
+                    <div class="mb-4">
+                        <h4><i class="bi bi-graph-up text-primary"></i> Real-time Tracking</h4>
+                        <p>Monitor your inventory levels in real-time with our dynamic dashboard and instant updates.</p>
+                    </div>
+                    <div class="mb-4">
+                        <h4><i class="bi bi-file-earmark-arrow-up text-primary"></i> Multi-format Import</h4>
+                        <p>Import inventory data seamlessly using CSV files, with Excel support coming soon.</p>
+                    </div>
+                    <div class="mb-4">
+                        <h4><i class="bi bi-shield-lock text-primary"></i> Secure Access</h4>
+                        <p>Enterprise-grade security with user authentication and role-based access control.</p>
+                    </div>
+                </div>
+
+                <h3 class="mb-4">Coming Soon</h3>
+                <div class="upcoming-features">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-file-excel text-success"></i> Excel Integration</h5>
+                            <p class="card-text">Direct import and export functionality for Excel files (.xlsx, .xls)</p>
+                        </div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-box-arrow-in-down text-info"></i> API Integration</h5>
+                            <p class="card-text">Connect with popular e-commerce platforms and ERP systems via API</p>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-dot"></i> Shopify Integration</li>
+                                <li><i class="bi bi-dot"></i> WooCommerce Support</li>
+                                <li><i class="bi bi-dot"></i> Custom API Endpoints</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title"><i class="bi bi-graph-up-arrow text-warning"></i> Advanced Analytics</h5>
+                            <p class="card-text">Comprehensive reporting and analytics features:</p>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-dot"></i> Stock Level Predictions</li>
+                                <li><i class="bi bi-dot"></i> Inventory Turnover Analysis</li>
+                                <li><i class="bi bi-dot"></i> Custom Report Generation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Features Section -->
+<div class="container-fluid bg-light py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2>Why Choose Our Inventory Tracker?</h2>
+                <p class="lead text-muted">A comprehensive solution for all your inventory management needs</p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="bi bi-lightning-charge display-4 text-primary"></i>
+                    <h4 class="mt-3">Fast & Efficient</h4>
+                    <p>Real-time updates and lightning-fast search capabilities</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="bi bi-phone display-4 text-primary"></i>
+                    <h4 class="mt-3">Mobile Responsive</h4>
+                    <p>Access your inventory from any device, anywhere</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <i class="bi bi-gear display-4 text-primary"></i>
+                    <h4 class="mt-3">Customizable</h4>
+                    <p>Adapt the system to your specific business needs</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Call to Action -->
+<div class="container-fluid bg-primary text-white py-5">
+    <div class="container text-center">
+        <h2>Ready to Get Started?</h2>
+        <p class="lead mb-4">Join thousands of businesses already using our inventory tracking solution</p>
+        <a href="{{ url_for('register') }}" class="btn btn-light btn-lg">Create Free Account</a>
+    </div>
+</div>
+{% endblock %} 
