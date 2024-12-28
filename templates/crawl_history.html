@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'sidebar.html' %}
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1>Crawl History</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <a href="{{ url_for('crawl_website') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-plus"></i> New Crawl
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% if crawls %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>URL</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Links Found</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for crawl in crawls %}
+                            <tr>
+                                <td>{{ crawl.url }}</td>
+                                <td>{{ crawl.crawl_date }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if crawl.status == 'completed' else 'danger' }}">
+                                        {{ crawl.status }}
+                                    </span>
+                                </td>
+                                <td>{{ crawl.crawl_data.links|length }}</td>
+                                <td>
+                                    <a href="{{ url_for('crawl_details', crawl_id=crawl.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    No crawl history found. Start by crawling a website!
+                </div>
+            {% endif %}
+        </main>
+    </div>
+</div>
+
+<script>
+// Automatically dismiss flash messages after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+});
+</script>
+{% endblock %}

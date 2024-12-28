@@ -1,2 +1,5 @@
 flask
 werkzeug
+crawl4ai
+asgiref
+quart 

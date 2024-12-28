@@ -1,0 +1,42 @@
+<nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+    <div class="position-sticky pt-3">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}" 
+                   href="{{ url_for('dashboard') }}">
+                    <i class="bi bi-house-door"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'add_item' }}" 
+                   href="{{ url_for('add_item') }}">
+                    <i class="bi bi-plus-circle"></i> Add Item
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'upload_csv' }}" 
+                   href="{{ url_for('upload_csv') }}">
+                    <i class="bi bi-upload"></i> Import CSV
+                </a>
+            </li>
+            <!-- New Crawling Features -->
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'crawl_website' }}" 
+                   href="{{ url_for('crawl_website') }}">
+                    <i class="bi bi-globe"></i> Crawl Website
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ 'active' if request.endpoint == 'crawl_history' }}" 
+                   href="{{ url_for('crawl_history') }}">
+                    <i class="bi bi-clock-history"></i> Crawl History
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>

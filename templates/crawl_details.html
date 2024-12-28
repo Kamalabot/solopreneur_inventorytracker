@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'sidebar.html' %}
+        
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <h1>Crawl Details</h1>
+                <div class="btn-toolbar mb-2 mb-md-0">
+                    <a href="{{ url_for('crawl_history') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to History
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-info alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <strong>URL:</strong> <a href="{{ crawl['url'] }}" target="_blank">{{ crawl['url'] }}</a>
+                </div>
+                <div class="card-body">
+                    <p><strong>Crawl Date:</strong> {{ crawl['crawl_date'] }}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="badge bg-{{ 'success' if crawl['status'] == 'completed' else 'danger' }}">
+                            {{ crawl['status'] }}
+                        </span>
+                    </p>
+                    
+                    {% set crawl_data = crawl['crawl_data']|from_json %}
+                    
+                    {% if crawl_data.status_code %}
+                    <p><strong>Status Code:</strong> {{ crawl_data.status_code }}</p>
+                    {% endif %}
+                    
+                    <h5 class="mt-4">Content:</h5>
+                    <ul class="nav nav-tabs" id="contentTabs" role="tablist">
+                        {% if crawl_data.markdown %}
+                        <li class="nav-item">
+                            <a class="nav-link active" id="markdown-tab" data-bs-toggle="tab" href="#markdown" role="tab">
+                                Markdown
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if crawl_data.fit_markdown %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="fit-markdown-tab" data-bs-toggle="tab" href="#fit-markdown" role="tab">
+                                Fit Markdown
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if crawl_data.cleaned_html %}
+                        <li class="nav-item">
+                            <a class="nav-link" id="cleaned-html-tab" data-bs-toggle="tab" href="#cleaned-html" role="tab">
+                                Cleaned HTML
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    
+                    <div class="tab-content mt-3" id="contentTabsContent">
+                        {% if crawl_data.markdown %}
+                        <div class="tab-pane fade show active" id="markdown" role="tabpanel">
+                            <pre class="bg-light p-3">{{ crawl_data.markdown }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if crawl_data.fit_markdown %}
+                        <div class="tab-pane fade" id="fit-markdown" role="tabpanel">
+                            <pre class="bg-light p-3">{{ crawl_data.fit_markdown }}</pre>
+                        </div>
+                        {% endif %}
+                        
+                        {% if crawl_data.cleaned_html %}
+                        <div class="tab-pane fade" id="cleaned-html" role="tabpanel">
+                            <pre class="bg-light p-3">{{ crawl_data.cleaned_html[:1000] }}...</pre>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <h5 class="mt-4">Links Found ({{ crawl_data.links|length }}):</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>URL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for link in crawl_data.links %}
+                                <tr>
+                                    <td><a href="{{ link }}" target="_blank">{{ link }}</a></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if crawl_data.headers %}
+                    <h5 class="mt-4">Headers:</h5>
+                    <pre class="bg-light p-3">{{ crawl_data.headers|tojson(indent=2) }}</pre>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<style>
+.content-preview {
+    max-height: 300px;
+    overflow-y: auto;
+}
+pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 500px;
+    overflow-y: auto;
+}
+</style>
+
+<script>
+// Automatically dismiss flash messages after 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+});
+</script>
+{% endblock %}

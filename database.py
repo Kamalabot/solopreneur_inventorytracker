@@ -30,5 +30,18 @@ def init_db():
         )
     ''')
     
+    # Create table for crawled data
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS crawled_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            crawl_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            crawl_data JSON NOT NULL,
+            status TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
