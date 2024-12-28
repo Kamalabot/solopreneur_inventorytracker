@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:latest
 
 # Set the working directory
 WORKDIR /app
@@ -6,8 +6,11 @@ WORKDIR /app
 # Copy the requirements file
 COPY requirements.txt .
 
+# upgrade pip
+# RUN pip install --upgrade pip
+
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install flask gunicorn crawl4ai werkzeug quart asgiref
 
 # Copy the application code
 COPY . .
@@ -16,4 +19,4 @@ COPY . .
 EXPOSE 5000
 
 # Command to run the application
-CMD ["python", "app.py"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000"]

@@ -3,3 +3,4 @@ werkzeug
 crawl4ai
 asgiref
 quart 
+gunicorn
