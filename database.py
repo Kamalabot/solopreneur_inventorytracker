@@ -1,26 +1,11 @@
 import sqlite3
 
 def init_db():
-    conn = sqlite3.connect('inventory.db')
-    c = conn.cursor()
-    
-    # Create table for electronics inventory
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS inventory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            category TEXT NOT NULL,
-            sector TEXT NOT NULL,
-            application TEXT NOT NULL,
-            date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            user_id INTEGER,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
+    connection = sqlite3.connect('inventory.db')
+    cursor = connection.cursor()
+
     # Create users table
-    c.execute('''
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -29,19 +14,52 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # Create table for crawled data
-    c.execute('''
+
+    # Create inventory table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            category TEXT NOT NULL,
+            sector TEXT NOT NULL,
+            application TEXT NOT NULL,
+            date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
+    # Create youtube_data table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS youtube_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            video_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            thumbnail_url TEXT,
+            channel_name TEXT,
+            date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
+    # Create crawled_data table
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS crawled_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             url TEXT NOT NULL,
-            crawl_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            crawl_data JSON NOT NULL,
+            crawl_data TEXT NOT NULL,
             status TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            crawl_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
-    
-    conn.commit()
-    conn.close()
+
+    connection.commit()
+    connection.close()
+
+if __name__ == '__main__':
+    init_db()

@@ -1,0 +1,65 @@
+/* Sidebar styles */
+.sidebar {
+    height: calc(100vh - 56px); /* Adjust based on your navbar height */
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-left: 1px solid #dee2e6;
+    position: sticky;
+    top: 56px; /* Should match the navbar height */
+}
+
+.video-item {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.video-title {
+    display: block;
+    font-size: 0.9rem;
+    color: #000;
+    text-decoration: none;
+    margin-bottom: 5px;
+    line-height: 1.2;
+}
+
+.video-title:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* Make sure the sidebar scrolls independently */
+.youtube-videos-list {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+/* Ensure the main content area is scrollable */
+.table-responsive {
+    max-height: calc(100vh - 150px);
+    overflow-y: auto;
+}
+
+/* Add some spacing for the buttons */
+.btn {
+    margin-right: 5px;
+}
+
+/* Make sure the crawl buttons are visible */
+.btn-info {
+    color: #fff;
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.btn-outline-info {
+    color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.btn-outline-info:hover {
+    color: #fff;
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+} 

@@ -15,14 +15,20 @@ import io
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import json
-from crawl4ai import AsyncWebCrawler  # Correct import
+from crawl4ai import AsyncWebCrawler
 import asyncio
 from asgiref.wsgi import WsgiToAsgi
 from quart import Quart
+from googleapiclient.discovery import build
+from urllib.parse import urlparse, parse_qs
+from database import init_db
+from yt_dlp import YoutubeDL
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key_here"  # Required for flashing messages and sessions
+app.secret_key = "your_secret_key_here"
 
+# Initialize the database when the app is created
+init_db()
 
 # Add custom Jinja2 filter for JSON parsing
 @app.template_filter("from_json")
@@ -59,28 +65,48 @@ def landing():
 def dashboard():
     try:
         conn = get_db_connection()
+        
+        # Get inventory items
         items = conn.execute(
             "SELECT * FROM inventory WHERE user_id = ? ORDER BY date_added DESC",
             (session["user_id"],),
         ).fetchall()
-        conn.close()
 
+        # Get YouTube videos
+        youtube_videos = conn.execute(
+            "SELECT * FROM youtube_data WHERE user_id = ? ORDER BY date_added DESC",
+            (session["user_id"],)
+        ).fetchall()
+        
         # Convert items to list of dictionaries for better handling
         items_list = []
         for item in items:
-            items_list.append(
-                {
-                    "id": item["id"],
-                    "name": item["name"],
-                    "quantity": item["quantity"],
-                    "category": item["category"],
-                    "sector": item["sector"],
-                    "application": item["application"],
-                    "date_added": item["date_added"],
-                }
-            )
+            items_list.append({
+                "id": item["id"],
+                "name": item["name"],
+                "quantity": item["quantity"],
+                "category": item["category"],
+                "sector": item["sector"],
+                "application": item["application"],
+                "date_added": item["date_added"],
+            })
 
-        return render_template("dashboard.html", items=items_list)
+        # Convert YouTube videos to list of dictionaries
+        videos_list = []
+        for video in youtube_videos:
+            videos_list.append({
+                "video_id": video["video_id"],
+                "title": video["title"],
+                "url": video["url"],
+                "thumbnail_url": video["thumbnail_url"],
+                "channel_name": video["channel_name"],
+                "date_added": video["date_added"]
+            })
+
+        conn.close()
+        return render_template("dashboard.html", 
+                             items=items_list,
+                             youtube_videos=videos_list)
     except Exception as e:
         flash(f"Error loading dashboard: {str(e)}")
         return redirect(url_for("login"))
@@ -469,8 +495,141 @@ def crawl_details(crawl_id):
     return render_template("crawl_details.html", crawl=crawl)
 
 
+def extract_youtube_data(url):
+    try:
+        # First get the channel URL from the video
+        with YoutubeDL({'quiet': True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+            channel_url = info.get('channel_url') or info.get('uploader_url')
+            
+            if not channel_url:
+                # If no channel URL found, just return the single video
+                return [{
+                    'video_id': info.get('id'),
+                    'title': info.get('title'),
+                    'url': info.get('webpage_url') or f'https://youtube.com/watch?v={info.get("id")}',
+                    'thumbnail_url': info.get('thumbnail'),
+                    'channel_name': info.get('uploader')
+                }]
+
+        # Now fetch all videos from the channel
+        ydl_opts = {
+            'quiet': True,
+            'extract_flat': True,
+            'force_generic_extractor': False,
+            'ignoreerrors': True,
+            'extract_flat_playlist': True,
+            'playlistend': 50  # Limit to latest 50 videos
+        }
+        
+        with YoutubeDL(ydl_opts) as ydl:
+            print(f"Fetching videos from channel: {channel_url}")
+            channel_info = ydl.extract_info(channel_url, download=False)
+            
+            if not channel_info:
+                print("No channel information found")
+                return None
+
+            videos = []
+            if 'entries' in channel_info:
+                for entry in channel_info['entries']:
+                    if entry and all(key in entry for key in ['id', 'title']):
+                        # Get best thumbnail
+                        thumbnail_url = entry.get('thumbnail')
+                        if isinstance(entry.get('thumbnails'), list):
+                            thumbnails = sorted(
+                                entry['thumbnails'], 
+                                key=lambda x: x.get('height', 0) * x.get('width', 0),
+                                reverse=True
+                            )
+                            if thumbnails:
+                                thumbnail_url = thumbnails[0].get('url')
+
+                        video = {
+                            'video_id': entry.get('id'),
+                            'title': entry.get('title'),
+                            'url': entry.get('webpage_url') or f'https://youtube.com/watch?v={entry.get("id")}',
+                            'thumbnail_url': thumbnail_url,
+                            'channel_name': entry.get('uploader') or channel_info.get('uploader')
+                        }
+                        
+                        # Only add if all required fields are present
+                        if all(video.values()):
+                            videos.append(video)
+                
+                print(f"Found {len(videos)} videos in channel")
+                return videos
+            else:
+                print("No entries found in channel info")
+                return None
+
+    except Exception as e:
+        print(f"Error in extract_youtube_data: {str(e)}")
+        return None
+
+
+@app.route('/add_youtube', methods=['POST'])
+@login_required
+def add_youtube():
+    url = request.form.get('youtube_url')
+    if not url:
+        flash('Please provide a YouTube URL')
+        return redirect(url_for('dashboard'))
+    
+    try:
+        print(f"Processing URL: {url}")
+        videos = extract_youtube_data(url)
+        
+        if videos:
+            conn = get_db_connection()
+            added_count = 0
+            skipped_count = 0
+            
+            for video in videos:
+                # Check if video already exists
+                existing = conn.execute(
+                    'SELECT id FROM youtube_data WHERE video_id = ? AND user_id = ?',
+                    (video['video_id'], session['user_id'])
+                ).fetchone()
+                
+                if not existing:
+                    try:
+                        conn.execute('''
+                            INSERT INTO youtube_data 
+                            (user_id, video_id, title, url, thumbnail_url, channel_name)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ''', (
+                            session['user_id'],
+                            video['video_id'],
+                            video['title'],
+                            video['url'],
+                            video['thumbnail_url'],
+                            video['channel_name']
+                        ))
+                        added_count += 1
+                    except Exception as e:
+                        print(f"Error inserting video {video['video_id']}: {str(e)}")
+                        continue
+                else:
+                    skipped_count += 1
+            
+            conn.commit()
+            conn.close()
+            
+            if added_count > 0:
+                flash(f'Successfully added {added_count} new videos! ({skipped_count} already existed)')
+            else:
+                flash(f'No new videos were added. {skipped_count} videos already existed in your collection.')
+        else:
+            flash('No videos found or invalid URL')
+    except Exception as e:
+        print(f"Error in add_youtube: {str(e)}")
+        flash(f'Error processing YouTube URL: {str(e)}')
+    
+    return redirect(url_for('dashboard'))
+
+
 if __name__ == "__main__":
     from database import init_db
-
-    init_db()
-    app.run()
+    init_db()  # Initialize database tables
+    app.run(debug=True)

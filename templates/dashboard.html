@@ -3,120 +3,205 @@
 {% block content %}
 <div class="container-fluid">
     <div class="row">
-        <!-- Include the external sidebar template -->
-        {% include 'sidebar.html' %}
+        <!-- Main Content Area (Left Side) -->
+        <div class="col-lg-9">
+            <!-- Action Buttons -->
+            <div class="action-buttons mb-4">
+                <a href="{{ url_for('add_item') }}" class="btn btn-primary">Add New Item</a>
+                <a href="{{ url_for('upload_csv') }}" class="btn btn-secondary">Upload CSV</a>
+                <a href="{{ url_for('crawl_website') }}" class="btn btn-info">Crawl Website</a>
+                <a href="{{ url_for('crawl_history') }}" class="btn btn-outline-info">View Crawl History</a>
+            </div>
 
-        <!-- Main content -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                <h1>Dashboard</h1>
-                <div class="btn-toolbar mb-2 mb-md-0">
-                    <div class="btn-group me-2">
-                        <a href="{{ url_for('add_item') }}" class="btn btn-sm btn-outline-primary">Add New Item</a>
-                        <a href="{{ url_for('upload_csv') }}" class="btn btn-sm btn-outline-secondary">Import CSV</a>
+            <!-- Inventory Table -->
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Quantity</th>
+                            <th>Category</th>
+                            <th>Sector</th>
+                            <th>Application</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr id="item-{{ item.id }}">
+                            <td>{{ item.name }}</td>
+                            <td>
+                                <span class="editable-quantity" 
+                                      data-item-id="{{ item.id }}"
+                                      data-current-value="{{ item.quantity }}">
+                                    {{ item.quantity }}
+                                </span>
+                            </td>
+                            <td>{{ item.category }}</td>
+                            <td>{{ item.sector }}</td>
+                            <td>{{ item.application }}</td>
+                            <td>{{ item.date_added }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger delete-item" 
+                                        data-item-id="{{ item.id }}">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sidebar (Right Side) -->
+        <div class="col-lg-3">
+            <div class="sidebar-content">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">YouTube Resources</h5>
+                        <span class="badge bg-light text-primary" id="video-count">
+                            {{ youtube_videos|length }} videos
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <!-- YouTube URL Form -->
+                        <form action="{{ url_for('add_youtube') }}" method="post" class="mb-3">
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="youtube_url" 
+                                       placeholder="Enter YouTube URL or Channel URL"
+                                       required>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                Paste any video URL to import all channel videos
+                            </small>
+                        </form>
+
+                        <!-- Channel Filter -->
+                        <div class="mb-3">
+                            <select class="form-select" id="channelFilter">
+                                <option value="">All Channels</option>
+                                {% set channels = [] %}
+                                {% for video in youtube_videos %}
+                                    {% if video.channel_name not in channels %}
+                                        {{ channels.append(video.channel_name) }}
+                                        <option value="{{ video.channel_name }}">
+                                            {{ video.channel_name }}
+                                        </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Search Box -->
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="videoSearch" 
+                                   placeholder="Search videos...">
+                        </div>
+
+                        <!-- YouTube Videos List -->
+                        <div class="youtube-videos-list" id="videosList">
+                            {% for video in youtube_videos %}
+                            <div class="video-card mb-3" data-channel="{{ video.channel_name }}">
+                                <div class="video-thumbnail">
+                                    <a href="{{ video.url }}" target="_blank">
+                                        <img src="{{ video.thumbnail_url }}" 
+                                             alt="{{ video.title }}" 
+                                             class="img-fluid rounded">
+                                    </a>
+                                </div>
+                                <div class="video-details mt-2">
+                                    <h6 class="video-title">
+                                        <a href="{{ video.url }}" target="_blank">
+                                            {{ video.title }}
+                                        </a>
+                                    </h6>
+                                    <p class="channel-name text-muted mb-0">
+                                        <i class="fas fa-user-circle"></i>
+                                        <small>{{ video.channel_name }}</small>
+                                    </p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert alert-info alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
-            <!-- Inventory Table -->
-            <div class="table-responsive" id="inventory-table">
-                {% if items %}
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Quantity</th>
-                                <th>Category</th>
-                                <th>Sector</th>
-                                <th>Application</th>
-                                <th>Date Added</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in items %}
-                            <tr>
-                                <td>{{ item['name'] }}</td>
-                                <td>
-                                    <span class="quantity-display">{{ item['quantity'] }}</span>
-                                    <input type="number" 
-                                           class="form-control quantity-input d-none" 
-                                           value="{{ item['quantity'] }}"
-                                           hx-put="{{ url_for('update_quantity', item_id=item['id']) }}"
-                                           hx-trigger="change"
-                                           hx-target="closest tr">
-                                </td>
-                                <td>{{ item['category'] }}</td>
-                                <td>{{ item['sector'] }}</td>
-                                <td>{{ item['application'] }}</td>
-                                <td>{{ item['date_added'] }}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary edit-quantity"
-                                            onclick="toggleQuantityEdit(this)">
-                                        <i class="bi bi-pencil"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger"
-                                            hx-delete="{{ url_for('delete_item', item_id=item['id']) }}"
-                                            hx-confirm="Are you sure you want to delete this item?"
-                                            hx-target="closest tr">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                {% else %}
-                    <div class="alert alert-info" role="alert">
-                        No items found. Start by adding some items to your inventory!
-                    </div>
-                {% endif %}
-            </div>
-        </main>
+        </div>
     </div>
 </div>
 
+<!-- JavaScript for dynamic functionality -->
 <script>
-function toggleQuantityEdit(button) {
-    const row = button.closest('tr');
-    const display = row.querySelector('.quantity-display');
-    const input = row.querySelector('.quantity-input');
-    
-    if (display.classList.contains('d-none')) {
-        // Save mode
-        display.classList.remove('d-none');
-        input.classList.add('d-none');
-        button.innerHTML = '<i class="bi bi-pencil"></i>';
-    } else {
-        // Edit mode
-        display.classList.add('d-none');
-        input.classList.remove('d-none');
-        input.focus();
-        button.innerHTML = '<i class="bi bi-check"></i>';
-    }
-}
-
-// Automatically dismiss flash messages after 5 seconds
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(function(alert) {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
+    const videosList = document.getElementById('videosList');
+    const channelFilter = document.getElementById('channelFilter');
+    const videoSearch = document.getElementById('videoSearch');
+    const videoCards = document.querySelectorAll('.video-card');
+    const videoCount = document.getElementById('video-count');
+
+    function filterVideos() {
+        const selectedChannel = channelFilter.value.toLowerCase();
+        const searchTerm = videoSearch.value.toLowerCase();
+        let visibleCount = 0;
+
+        videoCards.forEach(card => {
+            const channel = card.dataset.channel.toLowerCase();
+            const title = card.querySelector('.video-title').textContent.toLowerCase();
+            const matchesChannel = !selectedChannel || channel === selectedChannel;
+            const matchesSearch = !searchTerm || title.includes(searchTerm);
+
+            if (matchesChannel && matchesSearch) {
+                card.style.display = '';
+                visibleCount++;
+            } else {
+                card.style.display = 'none';
+            }
         });
-    }, 5000);
+
+        videoCount.textContent = `${visibleCount} videos`;
+    }
+
+    channelFilter.addEventListener('change', filterVideos);
+    videoSearch.addEventListener('input', filterVideos);
+
+    // Initialize Infinite Scroll
+    let loading = false;
+    const batchSize = 10;
+    let currentIndex = batchSize;
+
+    function loadMoreVideos() {
+        if (loading) return;
+
+        const cards = Array.from(videoCards);
+        const visibleCards = cards.filter(card => card.style.display !== 'none');
+
+        if (currentIndex < visibleCards.length) {
+            loading = true;
+            const batch = visibleCards.slice(currentIndex, currentIndex + batchSize);
+            batch.forEach(card => card.classList.remove('d-none'));
+            currentIndex += batchSize;
+            loading = false;
+        }
+    }
+
+    // Initial load
+    videoCards.forEach((card, index) => {
+        if (index >= batchSize) {
+            card.classList.add('d-none');
+        }
+    });
+
+    // Infinite scroll
+    videosList.addEventListener('scroll', () => {
+        if (videosList.scrollTop + videosList.clientHeight >= videosList.scrollHeight - 100) {
+            loadMoreVideos();
+        }
+    });
 });
 </script>
 {% endblock %} 
