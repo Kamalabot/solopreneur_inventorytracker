@@ -23,11 +23,60 @@ from googleapiclient.discovery import build
 from urllib.parse import urlparse, parse_qs
 from database import init_db
 from yt_dlp import YoutubeDL
+from contextlib import contextmanager
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key_here"
+app.config['SECRET_KEY'] = 'your-secret-key'  # make sure this is secure
 
-# Initialize the database when the app is created
+# Define database functions first
+def get_db():
+    conn = sqlite3.connect('inventory.db', timeout=15)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@contextmanager
+def get_db_connection():
+    conn = get_db()
+    try:
+        yield conn
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+# Then define init_db
+def init_db():
+    try:
+        with get_db_connection() as conn:
+            # Create users table
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL
+                )
+            ''')
+
+            # Create videos table
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS videos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    url TEXT NOT NULL,
+                    title TEXT,
+                    transcript TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            ''')
+    except Exception as e:
+        print(f"Database initialization error: {str(e)}")
+        raise e
+
+# Initialize database
 init_db()
 
 # Add custom Jinja2 filter for JSON parsing
@@ -47,12 +96,6 @@ def login_required(f):
     return decorated_function
 
 
-def get_db_connection():
-    conn = sqlite3.connect("inventory.db")
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
 @app.route("/")
 def landing():
     if "user_id" in session:
@@ -63,50 +106,16 @@ def landing():
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
     try:
-        conn = get_db_connection()
-        
-        # Get inventory items
-        items = conn.execute(
-            "SELECT * FROM inventory WHERE user_id = ? ORDER BY date_added DESC",
-            (session["user_id"],),
-        ).fetchall()
-
-        # Get YouTube videos
-        youtube_videos = conn.execute(
-            "SELECT * FROM youtube_data WHERE user_id = ? ORDER BY date_added DESC",
-            (session["user_id"],)
-        ).fetchall()
-        
-        # Convert items to list of dictionaries for better handling
-        items_list = []
-        for item in items:
-            items_list.append({
-                "id": item["id"],
-                "name": item["name"],
-                "quantity": item["quantity"],
-                "category": item["category"],
-                "sector": item["sector"],
-                "application": item["application"],
-                "date_added": item["date_added"],
-            })
-
-        # Convert YouTube videos to list of dictionaries
-        videos_list = []
-        for video in youtube_videos:
-            videos_list.append({
-                "video_id": video["video_id"],
-                "title": video["title"],
-                "url": video["url"],
-                "thumbnail_url": video["thumbnail_url"],
-                "channel_name": video["channel_name"],
-                "date_added": video["date_added"]
-            })
-
-        conn.close()
-        return render_template("dashboard.html", 
-                             items=items_list,
-                             youtube_videos=videos_list)
+        with get_db_connection() as conn:
+            videos = conn.execute(
+                "SELECT * FROM videos WHERE user_id = ?", 
+                (session["user_id"],)
+            ).fetchall()
+            return render_template("dashboard.html", videos=videos)
     except Exception as e:
         flash(f"Error loading dashboard: {str(e)}")
         return redirect(url_for("login"))
@@ -118,19 +127,22 @@ def login():
         username = request.form["username"]
         password = request.form["password"]
 
-        conn = get_db_connection()
-        user = conn.execute(
-            "SELECT * FROM users WHERE username = ?", (username,)
-        ).fetchone()
+        try:
+            with get_db_connection() as conn:
+                user = conn.execute(
+                    "SELECT * FROM users WHERE username = ?", (username,)
+                ).fetchone()
 
-        if user and check_password_hash(user["password"], password):
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            flash("Welcome back!")
-            return redirect(url_for("dashboard"))
+                if user and check_password_hash(user["password"], password):
+                    session["user_id"] = user["id"]
+                    session["username"] = user["username"]
+                    flash("Welcome back!")
+                    return redirect(url_for("dashboard"))
 
-        flash("Invalid username or password")
-        conn.close()
+                flash("Invalid username or password")
+        except Exception as e:
+            flash(f"Login error: {str(e)}")
+            
     return render_template("login.html")
 
 
@@ -141,22 +153,39 @@ def register():
         password = request.form["password"]
         email = request.form["email"]
 
-        conn = get_db_connection()
-        if conn.execute(
-            "SELECT id FROM users WHERE username = ?", (username,)
-        ).fetchone():
-            flash("Username already exists")
+        try:
+            with get_db_connection() as conn:
+                # Check if username exists
+                if conn.execute("SELECT id FROM users WHERE username = ?", 
+                              (username,)).fetchone():
+                    flash("Username already exists")
+                    return redirect(url_for("register"))
+
+                # Check if email exists
+                if conn.execute("SELECT id FROM users WHERE email = ?", 
+                              (email,)).fetchone():
+                    flash("Email already registered")
+                    return redirect(url_for("register"))
+
+                # Hash the password before storing
+                hashed_password = generate_password_hash(password)
+                
+                # Insert new user
+                conn.execute(
+                    "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
+                    (username, email, hashed_password)
+                )
+
+            flash("Registration successful! Please log in.")
+            return redirect(url_for("login"))
+            
+        except sqlite3.IntegrityError:
+            flash("Registration failed - user already exists")
+            return redirect(url_for("register"))
+        except Exception as e:
+            flash(f"Registration failed - {str(e)}")
             return redirect(url_for("register"))
 
-        hashed_password = generate_password_hash(password)
-        conn.execute(
-            "INSERT INTO users (username, password, email) VALUES (?, ?, ?)",
-            (username, hashed_password, email),
-        )
-        conn.commit()
-        conn.close()
-        flash("Registration successful! Please log in.")
-        return redirect(url_for("login"))
     return render_template("register.html")
 
 
@@ -440,36 +469,23 @@ def crawl_website():
     return render_template("crawl.html")
 
 
-@app.route("/crawl-history")
-@login_required
+@app.route("/crawl_history")
 def crawl_history():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
     try:
-        conn = get_db_connection()
-        crawls = conn.execute(
-            """
-            SELECT id, url, crawl_date, status, crawl_data
-            FROM crawled_data 
-            WHERE user_id = ? 
-            ORDER BY crawl_date DESC
-        """,
-            (session["user_id"],),
-        ).fetchall()
-
-        # Convert rows to dictionaries
-        crawls_list = []
-        for crawl in crawls:
-            crawls_list.append(
-                {
-                    "id": crawl["id"],
-                    "url": crawl["url"],
-                    "crawl_date": crawl["crawl_date"],
-                    "status": crawl["status"],
-                    "crawl_data": json.loads(crawl["crawl_data"]),
-                }
+        with get_db_connection() as conn:
+            # Fetch crawl history for the user
+            history = conn.execute(
+                "SELECT * FROM videos WHERE user_id = ? ORDER BY created_at DESC", 
+                (session["user_id"],)
+            ).fetchall()
+            
+            return render_template(
+                "crawl_history.html", 
+                history=history
             )
-
-        conn.close()
-        return render_template("crawl_history.html", crawls=crawls_list)
     except Exception as e:
         flash(f"Error loading crawl history: {str(e)}")
         return redirect(url_for("dashboard"))
@@ -627,6 +643,169 @@ def add_youtube():
         flash(f'Error processing YouTube URL: {str(e)}')
     
     return redirect(url_for('dashboard'))
+
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        try:
+            video_url = request.form.get("video_url")
+            if not video_url:
+                flash("Please provide a video URL")
+                return redirect(url_for("upload"))
+
+            # Your existing video processing logic here...
+            
+            with get_db_connection() as conn:
+                conn.execute(
+                    "INSERT INTO videos (url, user_id, title, transcript) VALUES (?, ?, ?, ?)",
+                    (video_url, session["user_id"], title, transcript)
+                )
+                
+            flash("Video uploaded successfully!")
+            return redirect(url_for("dashboard"))
+            
+        except Exception as e:
+            flash(f"Upload error: {str(e)}")
+            return redirect(url_for("upload"))
+            
+    return render_template("upload.html")
+
+
+@app.route("/video/<int:video_id>")
+def video_detail(video_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
+    try:
+        with get_db_connection() as conn:
+            video = conn.execute(
+                "SELECT * FROM videos WHERE id = ? AND user_id = ?",
+                (video_id, session["user_id"])
+            ).fetchone()
+            
+            if video is None:
+                flash("Video not found")
+                return redirect(url_for("dashboard"))
+                
+            return render_template("video_detail.html", video=video)
+    except Exception as e:
+        flash(f"Error loading video: {str(e)}")
+        return redirect(url_for("dashboard"))
+
+
+@app.route("/delete/<int:video_id>", methods=["POST"])
+def delete_video(video_id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
+    try:
+        with get_db_connection() as conn:
+            conn.execute(
+                "DELETE FROM videos WHERE id = ? AND user_id = ?",
+                (video_id, session["user_id"])
+            )
+            
+        flash("Video deleted successfully")
+    except Exception as e:
+        flash(f"Error deleting video: {str(e)}")
+        
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/search", methods=["GET", "POST"])
+def search():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
+    if request.method == "POST":
+        query = request.form.get("query", "")
+        try:
+            with get_db_connection() as conn:
+                videos = conn.execute(
+                    """SELECT * FROM videos 
+                       WHERE user_id = ? AND 
+                       (title LIKE ? OR transcript LIKE ?)""",
+                    (session["user_id"], f"%{query}%", f"%{query}%")
+                ).fetchall()
+                
+            return render_template("search_results.html", videos=videos, query=query)
+        except Exception as e:
+            flash(f"Search error: {str(e)}")
+            return redirect(url_for("dashboard"))
+            
+    return render_template("search.html")
+
+
+@app.route("/profile")
+def profile():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+        
+    try:
+        with get_db_connection() as conn:
+            user = conn.execute(
+                "SELECT * FROM users WHERE id = ?",
+                (session["user_id"],)
+            ).fetchone()
+            
+            if user is None:
+                session.clear()
+                return redirect(url_for("login"))
+                
+            return render_template("profile.html", user=user)
+    except Exception as e:
+        flash(f"Error loading profile: {str(e)}")
+        return redirect(url_for("dashboard"))
+
+
+@app.route('/upload_csv_file', methods=['POST'])
+def upload_csv_file():
+    if 'file' not in request.files:
+        return 'No file uploaded', 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return 'No file selected', 400
+
+    try:
+        with get_db_connection() as conn:
+            csv_file = TextIOWrapper(file.stream, encoding='utf-8')
+            csv_reader = csv.reader(csv_file)
+            next(csv_reader)  # Skip header row
+            
+            for row in csv_reader:
+                conn.execute(
+                    "INSERT INTO inventory (item_name, quantity, price) VALUES (?, ?, ?)",
+                    (row[0], row[1], row[2])
+                )
+            
+        return 'File uploaded successfully', 200
+    except Exception as e:
+        flash(f"Error uploading CSV: {str(e)}")
+        return f'Error uploading file: {str(e)}', 500
+
+
+@app.route('/upload_csv_data', methods=['POST'])
+def upload_csv_data():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        with get_db_connection() as conn:
+            for item in data:
+                conn.execute(
+                    "INSERT INTO inventory (item_name, quantity, price) VALUES (?, ?, ?)",
+                    (item['name'], item['quantity'], item['price'])
+                )
+            
+        return jsonify({'message': 'Data uploaded successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == "__main__":
